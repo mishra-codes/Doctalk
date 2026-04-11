@@ -26,7 +26,11 @@ app = FastAPI(title="DocTalk API")
 
 #initializing model and ChromaDB once at startup
 model = SentenceTransformer(EMBED_MODEL)
-client = chromadb.PersistentClient(path=CHROMA_PATH)
+client = chromadb.CloudClient(
+    tenant=os.getenv("CHROMA_TENANT"),
+    database=os.getenv("CHROMA_DATABASE"),
+    api_key=os.getenv("CHROMA_API_KEY")
+)
 collection = client.get_or_create_collection(name=COLLECTION)
 
 #adding Pydantic model for query request
