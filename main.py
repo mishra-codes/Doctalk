@@ -1,4 +1,5 @@
 import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 import fitz
@@ -23,23 +24,33 @@ CHUNK_OVERLAP = 50
 EMBED_MODEL = "all-MiniLM-L6-v2"
 TOP_K       = 3
 
+
+# Global references (set during startup)
+model = None
+collection = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global model, collection
+    print("Loading model and connecting to ChromaDB...")
+    model = SentenceTransformer(EMBED_MODEL)
+    client = chromadb.CloudClient(
+        tenant=os.getenv("CHROMA_TENANT"),
+        database=os.getenv("CHROMA_DATABASE"),
+        api_key=os.getenv("CHROMA_API_KEY")
+    )
+    collection = client.get_or_create_collection(name=COLLECTION)
+    print("Ready!")
+    yield
+
 #initializing Fastapi
-app = FastAPI(title="DocTalk API")
+app = FastAPI(title="DocTalk API",lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 def read_root():
     return FileResponse("static/index.html")
-
-#initializing model and ChromaDB once at startup
-model = SentenceTransformer(EMBED_MODEL)
-client = chromadb.CloudClient(
-    tenant=os.getenv("CHROMA_TENANT"),
-    database=os.getenv("CHROMA_DATABASE"),
-    api_key=os.getenv("CHROMA_API_KEY")
-)
-collection = client.get_or_create_collection(name=COLLECTION)
 
 #adding Pydantic model for query request
 class QueryRequest(BaseModel):
