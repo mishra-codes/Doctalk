@@ -9,6 +9,8 @@ import uuid
 import os
 from groq import Groq
 from dotenv import load_dotenv
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 load_dotenv()
 groq_client= Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -23,6 +25,12 @@ TOP_K       = 3
 
 #initializing Fastapi
 app = FastAPI(title="DocTalk API")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def read_root():
+    return FileResponse("static/index.html")
 
 #initializing model and ChromaDB once at startup
 model = SentenceTransformer(EMBED_MODEL)

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DocTalk</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f0f0f;
+      --surface:  #181818;
+      --border:   #2a2a2a;
+      --accent:   #c8f25a;
+      --text:     #e8e8e8;
+      --muted:    #666;
+      --radius:   12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: sans-serif;
+      font-weight: 300;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    header h1 {
+      font-family: serif;
+      font-size: 3rem;
+      letter-spacing: -1px;
+      color: var(--text);
+    }
+
+    header h1 span {
+      color: var(--accent);
+    }
+
+    header p {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      width: 100%;
+      max-width: 640px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* Upload zone */
+    .upload-zone {
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(200, 242, 90, 0.04);
+    }
+
+    .upload-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .upload-icon {
+      font-size: 1.8rem;
+      margin-bottom: 10px;
+    }
+
+    .upload-zone p {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .upload-zone .file-name {
+      color: var(--accent);
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-top: 6px;
+    }
+
+    /* Button */
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      letter-spacing: 0.03em;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0f0f0f;
+      margin-top: 16px;
+    }
+
+    .btn-primary:hover:not(:disabled) { opacity: 0.88; }
+
+    /* Question input */
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 300;
+      padding: 14px 16px;
+      resize: none;
+      outline: none;
+      transition: border-color 0.2s;
+      line-height: 1.6;
+    }
+
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+
+    /* Status */
+    .status {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 12px;
+      min-height: 18px;
+      letter-spacing: 0.01em;
+    }
+
+    .status.success { color: var(--accent); }
+    .status.error   { color: #ff6b6b; }
+
+    /* Answer */
+    #answer-card { display: none; }
+
+    .answer-text {
+      font-size: 1rem;
+      line-height: 1.75;
+      color: var(--text);
+      font-weight: 300;
+    }
+
+    /* Divider */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 20px 0;
+    }
+
+    .chunks-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .chunk {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Doc<span>Talk</span></h1>
+    <p>Ask anything about your PDF</p>
+  </header>
+
+  <!-- Upload card -->
+  <div class="card">
+    <div class="card-title">01 — Upload PDF</div>
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" id="pdf-input" accept=".pdf" />
+      <div class="upload-icon">📄</div>
+      <p>Drop your PDF here or click to browse</p>
+      <div class="file-name" id="file-name"></div>
+    </div>
+    <button class="btn btn-primary" id="ingest-btn" disabled>Ingest PDF</button>
+    <div class="status" id="ingest-status"></div>
+  </div>
+
+  <!-- Query card -->
+  <div class="card">
+    <div class="card-title">02 — Ask a Question</div>
+    <textarea id="question-input" rows="3" placeholder="What is cloud computing?"></textarea>
+    <button class="btn btn-primary" id="query-btn">Ask</button>
+    <div class="status" id="query-status"></div>
+  </div>
+
+  <!-- Answer card -->
+  <div class="card" id="answer-card">
+    <div class="card-title">Answer</div>
+    <div class="answer-text" id="answer-text"></div>
+    <hr />
+    <div class="chunks-label">Retrieved chunks</div>
+    <div id="chunks-container"></div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:8000';
+
+    // File selection
+    const pdfInput   = document.getElementById('pdf-input');
+    const fileName   = document.getElementById('file-name');
+    const ingestBtn  = document.getElementById('ingest-btn');
+    const uploadZone = document.getElementById('upload-zone');
+
+    pdfInput.addEventListener('change', () => {
+      if (pdfInput.files[0]) {
+        fileName.textContent = pdfInput.files[0].name;
+        ingestBtn.disabled = false;
+      }
+    });
+
+    // Drag and drop
+    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+    uploadZone.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+      pdfInput.files = e.dataTransfer.files;
+      pdfInput.dispatchEvent(new Event('change'));
+    });
+
+    // Ingest
+    ingestBtn.addEventListener('click', async () => {
+      const file = pdfInput.files[0];
+      if (!file) return;
+
+      const status = document.getElementById('ingest-status');
+      ingestBtn.disabled = true;
+      status.className = 'status';
+      status.innerHTML = '<span class="spinner"></span>Ingesting PDF...';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res  = await fetch(`${API}/ingest`, { method: 'POST', body: formData });
+        const data = await res.json();
+        status.className = 'status success';
+        status.textContent = data.message;
+      } catch (err) {
+        status.className = 'status error';
+        status.textContent = 'Ingestion failed. Is the server running?';
+      } finally {
+        ingestBtn.disabled = false;
+      }
+    });
+
+    // Query
+    document.getElementById('query-btn').addEventListener('click', async () => {
+      const question = document.getElementById('question-input').value.trim();
+      if (!question) return;
+
+      const queryBtn    = document.getElementById('query-btn');
+      const queryStatus = document.getElementById('query-status');
+      const answerCard  = document.getElementById('answer-card');
+
+      queryBtn.disabled = true;
+      queryStatus.className = 'status';
+      queryStatus.innerHTML = '<span class="spinner"></span>Thinking...';
+      answerCard.style.display = 'none';
+
+      try {
+        const res  = await fetch(`${API}/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+        const data = await res.json();
+
+        document.getElementById('answer-text').textContent = data.answer;
+
+        const chunksContainer = document.getElementById('chunks-container');
+        chunksContainer.innerHTML = '';
+        data.chunks.forEach((chunk, i) => {
+          const div = document.createElement('div');
+          div.className = 'chunk';
+          div.textContent = chunk;
+          chunksContainer.appendChild(div);
+        });
+
+        answerCard.style.display = 'block';
+        queryStatus.textContent = '';
+      } catch (err) {
+        queryStatus.className = 'status error';
+        queryStatus.textContent = 'Query failed. Is the server running?';
+      } finally {
+        queryBtn.disabled = false;
+      }
+    });
+  </script>
+
+</body>
+</html>
