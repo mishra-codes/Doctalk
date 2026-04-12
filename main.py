@@ -5,35 +5,45 @@ from pydantic import BaseModel
 import fitz
 import chromadb
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from sentence_transformers import SentenceTransformer
 import uuid
 import os
 from groq import Groq
 from dotenv import load_dotenv
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+import cohere
+
 
 load_dotenv()
 groq_client= Groq(api_key=os.getenv("GROQ_API_KEY"))
+co = cohere.Client(os.getenv("COHERE_API_KEY"))
 
 # Configuration
-CHROMA_PATH = "./chroma_db"
 COLLECTION  = "doctalk"
 CHUNK_SIZE  = 512
 CHUNK_OVERLAP = 50
-EMBED_MODEL = "all-MiniLM-L6-v2"
 TOP_K       = 3
 
 
 # Global references (set during startup)
-model = None
+
 collection = None
+
+# New Embedding model
+
+def get_embedding(texts, input_type="search_document"):
+    response = co.embed(
+        texts= texts,
+        model="embed-english_light-v3.0",
+        input_type=input_type
+    )
+    return response.embeddings
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global model, collection
     print("Loading model and connecting to ChromaDB...")
-    model = SentenceTransformer(EMBED_MODEL)
     client = chromadb.CloudClient(
         tenant=os.getenv("CHROMA_TENANT"),
         database=os.getenv("CHROMA_DATABASE"),
@@ -47,6 +57,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="DocTalk API",lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 @app.get("/")
 def read_root():
@@ -75,7 +86,7 @@ async def ingest_pdf(file: UploadFile = File(...)):
     )
     chunks = splitter.split_text(full_text)
 
-    embeddings = model.encode(chunks).tolist()
+    embeddings = get_embedding(chunks, input_type="search_documents")
 
     ids = [str(uuid.uuid4()) for _ in chunks]
     metadatas = [{"source": file.filename, "chunk_index": i} for i, _ in enumerate(chunks)]
@@ -94,7 +105,7 @@ async def ingest_pdf(file: UploadFile = File(...)):
 
 @app.post("/query")
 async def query_pdf(request: QueryRequest):
-    question_embedding = model.encode([request.question]).tolist()[0]
+    question_embedding = get_embedding([request.question], input_type="search_query")[0]
     
     results = collection.query(
         query_embeddings=[question_embedding],
@@ -102,7 +113,6 @@ async def query_pdf(request: QueryRequest):
     )
     
     chunks = results["documents"][0]
-
     context = "\n\n".join(chunks)
 
     prompt =f"""You are a helpful assistant. Answer the Questions based only on the context provided below.
