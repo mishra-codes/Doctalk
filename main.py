@@ -43,14 +43,20 @@ def get_embedding(texts, input_type="search_document"):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global collection
-    print("Loading model and connecting to ChromaDB...")
-    client = chromadb.CloudClient(
-        tenant=os.getenv("CHROMA_TENANT"),
-        database=os.getenv("CHROMA_DATABASE"),
-        api_key=os.getenv("CHROMA_API_KEY")
+    try:
+        print("Loading model and connecting to ChromaDB...")
+        client = chromadb.CloudClient(
+            tenant=os.getenv("CHROMA_TENANT"),
+            database=os.getenv("CHROMA_DATABASE"),
+            api_key=os.getenv("CHROMA_API_KEY")
     )
-    collection = client.get_or_create_collection(name=COLLECTION)
-    print("Ready!")
+        
+        collection = client.get_or_create_collection(name=COLLECTION)
+        print("Ready!")
+
+    except Exception as e:
+        print(f"Startup error: {e}")
+
     yield
 
 #initializing Fastapi
@@ -107,10 +113,15 @@ async def ingest_pdf(file: UploadFile = File(...)):
 async def query_pdf(request: QueryRequest):
     question_embedding = get_embedding([request.question], input_type="search_query")[0]
     
+    
+    if collection is None:
+        return {"error": "Database not initialized"}
+
     results = collection.query(
         query_embeddings=[question_embedding],
         n_results=TOP_K
     )
+
     
     chunks = results["documents"][0]
     context = "\n\n".join(chunks)
@@ -142,5 +153,12 @@ Answer:"""
     }
 
 if __name__ == "__main__":
-    print("starting server...")
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload = True)
+    port = int(os.environ.get("PORT", 8000))
+    print(f"starting server on port {port}...")
+
+    uvicorn.run(
+        "main:app",
+         host="0.0.0.0", 
+         port=port, 
+         reload =True
+    )
