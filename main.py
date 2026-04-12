@@ -34,7 +34,7 @@ collection = None
 def get_embedding(texts, input_type="search_document"):
     response = co.embed(
         texts= texts,
-        model="embed-english_light-v3.0",
+        model="embed-english-light-v3.0",
         input_type=input_type
     )
     return response.embeddings
@@ -42,7 +42,7 @@ def get_embedding(texts, input_type="search_document"):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global model, collection
+    global collection
     print("Loading model and connecting to ChromaDB...")
     client = chromadb.CloudClient(
         tenant=os.getenv("CHROMA_TENANT"),
@@ -86,7 +86,7 @@ async def ingest_pdf(file: UploadFile = File(...)):
     )
     chunks = splitter.split_text(full_text)
 
-    embeddings = get_embedding(chunks, input_type="search_documents")
+    embeddings = get_embedding(chunks, input_type="search_document")
 
     ids = [str(uuid.uuid4()) for _ in chunks]
     metadatas = [{"source": file.filename, "chunk_index": i} for i, _ in enumerate(chunks)]
