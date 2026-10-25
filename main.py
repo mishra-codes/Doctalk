@@ -69,6 +69,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 def read_root():
     return FileResponse("static/index.html")
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "service": "DocTalk API"}
+
+
 #adding Pydantic model for query request
 class QueryRequest(BaseModel):
     question: str
